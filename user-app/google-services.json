@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "701815231003",
+    "project_id": "sms-fo",
+    "storage_bucket": "sms-fo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:701815231003:android:e2a9fdd037983db5bc5ebe",
+        "android_client_info": {
+          "package_name": "com.smsync.user"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBekZKh2YAba5lTmpYwY_usFU1X32Snstk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

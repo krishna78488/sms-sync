@@ -1,0 +1,20 @@
+{
+  "rules": {
+    "devices": {
+      "$deviceId": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid === $deviceId",
+        "messages": {
+          ".read": "auth != null",
+          ".write": "auth != null && auth.uid === $deviceId",
+          "$messageId": {
+            ".validate": "newData.hasChildren(['sender','body','timestamp'])",
+            "sender": { ".validate": "newData.isString() && newData.val().length <= 64" },
+            "body": { ".validate": "newData.isString() && newData.val().length <= 4096" },
+            "timestamp": { ".validate": "newData.isNumber() && newData.val() > 1000000000000" }
+          }
+        }
+      }
+    }
+  }
+}

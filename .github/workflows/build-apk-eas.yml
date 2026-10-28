@@ -1,0 +1,132 @@
+name: Build APKs (EAS Build)
+
+# ---------------------------------------------------------------------------
+# Triggers a cloud build on Expo's EAS Build service for BOTH apps and
+# downloads the resulting .apk files as GitHub Actions artifacts.
+#
+# Required repository secrets:
+#   EXPO_TOKEN   — create at https://expo.dev/accounts/<you>/settings/access-tokens
+#
+# No Android SDK, no Android Studio, no local machine required.
+# ---------------------------------------------------------------------------
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: eas-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-user-app:
+    name: "User App → APK"
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: user-app/package-lock.json
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Build (APK, preview profile)
+        working-directory: user-app
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        # --no-wait returns immediately; --json gives us the build ID / URL.
+        run: |
+          eas build --platform android --profile preview --non-interactive --no-wait --json > build.json
+          cat build.json
+
+      - name: Poll until the build finishes and grab the artifact URL
+        working-directory: user-app
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          BUILD_ID=$(node -e "console.log(require('./build.json')[0].id)")
+          echo "Build ID: $BUILD_ID"
+          for i in $(seq 1 60); do
+            STATUS=$(eas build:view "$BUILD_ID" --json | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).status))")
+            echo "attempt $i → status=$STATUS"
+            if [ "$STATUS" = "FINISHED" ]; then
+              URL=$(eas build:view "$BUILD_ID" --json | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const j=JSON.parse(d);console.log(j.artifacts?.buildUrl||'')})")
+              echo "APK URL: $URL"
+              curl -L "$URL" -o sms-sync-user.apk
+              exit 0
+            fi
+            if [ "$STATUS" = "ERRORED" ] || [ "$STATUS" = "CANCELED" ]; then
+              echo "Build $STATUS"
+              exit 1
+            fi
+            sleep 60
+          done
+          echo "Timed out waiting for build"
+          exit 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sms-sync-user-apk
+          path: user-app/sms-sync-user.apk
+          if-no-files-found: error
+
+  build-admin-app:
+    name: "Admin App → APK"
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: admin-app/package-lock.json
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli@latest
+
+      - name: Build (APK, preview profile)
+        working-directory: admin-app
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --platform android --profile preview --non-interactive --no-wait --json > build.json
+          cat build.json
+
+      - name: Poll until the build finishes and grab the artifact URL
+        working-directory: admin-app
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          BUILD_ID=$(node -e "console.log(require('./build.json')[0].id)")
+          echo "Build ID: $BUILD_ID"
+          for i in $(seq 1 60); do
+            STATUS=$(eas build:view "$BUILD_ID" --json | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>console.log(JSON.parse(d).status))")
+            echo "attempt $i → status=$STATUS"
+            if [ "$STATUS" = "FINISHED" ]; then
+              URL=$(eas build:view "$BUILD_ID" --json | node -e "let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{const j=JSON.parse(d);console.log(j.artifacts?.buildUrl||'')})")
+              echo "APK URL: $URL"
+              curl -L "$URL" -o sms-sync-admin.apk
+              exit 0
+            fi
+            if [ "$STATUS" = "ERRORED" ] || [ "$STATUS" = "CANCELED" ]; then
+              echo "Build $STATUS"
+              exit 1
+            fi
+            sleep 60
+          done
+          echo "Timed out waiting for build"
+          exit 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sms-sync-admin-apk
+          path: admin-app/sms-sync-admin.apk
+          if-no-files-found: error

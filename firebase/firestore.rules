@@ -1,0 +1,64 @@
+rules_version = '2';
+
+// =====================================================================
+//  FIRESTORE RULES  (alternative backend — use these only if you chose
+//  Firestore instead of the Realtime Database)
+//
+//  Data shape written by the user app:
+//    messages/{autoId}  -> { deviceId, sender, body, timestamp, ... }
+//    devices/{uid}      -> { model, manufacturer, androidVersion, ... }
+//
+//  Recommended composite indexes (Firestore console will prompt you, or
+//  add them to firebase.json):
+//    messages:  timestamp ASC
+//    messages:  deviceId ASC, timestamp DESC
+//    messages:  sender   ASC, timestamp DESC
+// =====================================================================
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        && get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ---- messages -----------------------------------------------------
+    match /messages/{messageId} {
+      // Only admins may read.
+      allow read: if isAdmin();
+
+      // A device may create its own message but never edit or delete it.
+      allow create: if isSignedIn()
+        && request.resource.data.deviceId == request.auth.uid
+        && request.resource.data.keys().hasAll(['deviceId','sender','body','timestamp','uploadedAt'])
+        && request.resource.data.sender is string
+        && request.resource.data.sender.size() <= 64
+        && request.resource.data.body is string
+        && request.resource.data.body.size() <= 4096
+        && request.resource.data.timestamp is number
+        && request.resource.data.timestamp > 1000000000000;
+
+      allow update, delete: if false;
+    }
+
+    // ---- devices ------------------------------------------------------
+    match /devices/{deviceId} {
+      allow read: if isAdmin() || (isSignedIn() && request.auth.uid == deviceId);
+      allow write: if isSignedIn()
+        && request.auth.uid == deviceId
+        && request.resource.data.keys().hasAll(['model','manufacturer','androidVersion','sdk','registeredAt','lastSeen']);
+      allow delete: if false;
+    }
+
+    // ---- admins (managed only by the Admin SDK / Console) -------------
+    match /admins/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+  }
+}

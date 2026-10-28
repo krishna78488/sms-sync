@@ -1,0 +1,27 @@
+{
+  "expo": {
+    "name": "SMS Sync Admin",
+    "slug": "sms-sync-admin",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "scheme": "smsyncadmin",
+    "android": {
+      "package": "com.smsync.admin",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.smsync.admin",
+      "supportsTablet": false
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1a0936e1-f85f-48c1-86ad-bec1df692157"
+      }
+    }
+  }
+}

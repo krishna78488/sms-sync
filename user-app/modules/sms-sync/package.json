@@ -1,0 +1,8 @@
+{
+  "name": "expo-modules-sms-sync",
+  "version": "1.0.0",
+  "description": "Expo local module for background SMS sync to Firebase",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "sideEffects": false
+}
